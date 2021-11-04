@@ -37,12 +37,12 @@ namespace flatbuffers {
 
 namespace go {
 
-// see https://golang.org/ref/spec#Keywords
+// see https://docs.julialang.org/en/v1/base/base/#Keywords
 static const char *const g_golang_keywords[] = {
-  "break",  "default", "func",        "interface", "select", "case", "defer",
-  "go",     "map",     "struct",      "chan",      "else",   "goto", "package",
-  "switch", "const",   "fallthrough", "if",        "range",  "type", "continue",
-  "for",    "import",  "return",      "var",
+  "baremodule", "begin", "break", "catch", "const", "continue", "do", "else",
+  "elseif", "end", "export", "false", "finally", "for", "function", "global",
+  "if", "import", "let", "local", "macro", "module", "quote", "return", "struct",
+  "true", "try", "using", "while"
 };
 
 static std::string GoIdentity(const std::string &name) {
@@ -137,12 +137,12 @@ class GoGenerator : public BaseGenerator {
   void BeginClass(const StructDef &struct_def, std::string *code_ptr) {
     std::string &code = *code_ptr;
 
-    code += "type " + struct_def.name + " struct {\n\t";
+    code += "struct "+ struct_def.name + " <: ";
+    code += struct_def.fixed ? "FlatBuffers.Struct\n" : "FlatBuffers.Table\n";
+    code += "\tbytes::Vector{UInt8}\n";
+    code += "\tpos::Base.Int\n";
+    code += "end\n\n";
 
-    // _ is reserved in flatbuffers field names, so no chance of name conflict:
-    code += "_tab ";
-    code += struct_def.fixed ? "flatbuffers.Struct" : "flatbuffers.Table";
-    code += "\n}\n\n";
   }
 
   // Construct the name of the type for this enum.
@@ -554,38 +554,32 @@ class GoGenerator : public BaseGenerator {
   // Get the value of a table's starting offset.
   void GetStartOfTable(const StructDef &struct_def, std::string *code_ptr) {
     std::string &code = *code_ptr;
-    code += "func " + struct_def.name + "Start";
-    code += "(builder *flatbuffers.Builder) {\n";
-    code += "\tbuilder.StartObject(";
+    code += struct_def.name + "Start";
+    code += "(b::FlatBuffers.Builder) = FlatBuffers.startobject!(b, ";
     code += NumToString(struct_def.fields.vec.size());
-    code += ")\n}\n";
+    code += ")\n";
   }
 
   // Set the value of a table's field.
   void BuildFieldOfTable(const StructDef &struct_def, const FieldDef &field,
                          const size_t offset, std::string *code_ptr) {
     std::string &code = *code_ptr;
-    code += "func " + struct_def.name + "Add" + MakeCamel(field.name);
-    code += "(builder *flatbuffers.Builder, ";
-    code += GoIdentity(field.name) + " ";
+    code += struct_def.name + "Add" + MakeCamel(field.name);
+    code += "(b::FlatBuffers.Builder, ";
+    code += GoIdentity(field.name);
+
     if (!IsScalar(field.value.type.base_type) && (!struct_def.fixed)) {
-      code += "flatbuffers.UOffsetT";
+      code += "::FlatBuffers.UOffsetT) = ";
+      code += "FlatBuffers.prependoffsetslot!(";
     } else {
-      code += TypeName(field);
+      code += "::" + TypeName(field) + ") = ";
+      code += "FlatBuffers.prependslot!(";
     }
-    code += ") {\n";
-    code += "\tbuilder.Prepend";
-    code += GenMethod(field) + "Slot(";
     code += NumToString(offset) + ", ";
-    if (!IsScalar(field.value.type.base_type) && (!struct_def.fixed)) {
-      code += "flatbuffers.UOffsetT";
-      code += "(";
-      code += GoIdentity(field.name) + ")";
-    } else {
-      code += CastToBaseType(field.value.type, GoIdentity(field.name));
-    }
-    code += ", " + GenConstant(field);
-    code += ")\n}\n";
+    code += GoIdentity(field.name) + ", ";
+    code += GenConstant(field);
+    code += ")\n";
+    
   }
 
   // Set the value of one of the members of a table's vector.
@@ -607,9 +601,8 @@ class GoGenerator : public BaseGenerator {
   // Get the offset of the end of a table.
   void GetEndOffsetOnTable(const StructDef &struct_def, std::string *code_ptr) {
     std::string &code = *code_ptr;
-    code += "func " + struct_def.name + "End";
-    code += "(builder *flatbuffers.Builder) flatbuffers.UOffsetT ";
-    code += "{\n\treturn builder.EndObject()\n}\n";
+    code += struct_def.name + "End";
+    code += "(b::FlatBuffers.Builder) = FlatBuffers.endobject!(b)";
   }
 
   // Generate the receiver for function signatures.
