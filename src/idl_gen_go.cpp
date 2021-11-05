@@ -41,8 +41,8 @@ namespace go {
 static const char *const g_golang_keywords[] = {
   "baremodule", "begin", "break", "catch", "const", "continue", "do", "else",
   "elseif", "end", "export", "false", "finally", "for", "function", "global",
-  "if", "import", "let", "local", "macro", "module", "quote", "return", "struct",
-  "true", "try", "using", "while"
+  "if", "import", "let", "local", "macro", "module", "quote", "return", 
+  "struct", "true", "try", "using", "while"
 };
 
 static std::string GoIdentity(const std::string &name) {
@@ -611,6 +611,104 @@ class GoGenerator : public BaseGenerator {
     code += "func (rcv *" + struct_def.name + ")";
   }
 
+  void GenPropertyNames(const StructDef &struct_def, std::string *code_ptr){
+      std::string &code = *code_ptr;
+      code += "Base.propertynames(::" + struct_def.name + ") = (\n";
+      for (auto it = struct_def.fields.vec.begin();
+         it != struct_def.fields.vec.end(); ++it) {
+          auto &field = **it;
+          if (field.deprecated) continue;
+          code += "\t:" + GoIdentity(field.name) + ",\n";
+      }
+      code += ")\n\n";
+  }
+
+  void GenGetProperty(const StructDef &struct_def, std::string *code_ptr){
+      std::string &code = *code_ptr;
+      bool first = true;
+
+      //bool x = true;
+      code += "function Base.getproperty(x::" + struct_def.name + ", field::Symbol)\n";
+      for (auto it = struct_def.fields.vec.begin();
+         it != struct_def.fields.vec.end(); ++it) {
+          auto &field = **it;
+          std::string getter = GenGetter(field.value.type);
+
+          if (field.deprecated) continue;
+
+          if (first){
+            code += "\tif field === ";
+            first = false;
+          } else {
+            code += "\telseif field === ";
+          }
+          code += ":" + GoIdentity(field.name) + "\n";
+
+          //GenComment(field.doc_comment, code_ptr, nullptr, "");
+          if (IsScalar(field.value.type.base_type)) {
+            if (struct_def.fixed) {
+              code += "\t\t//GetScalarFieldOfStruct fofofof\n";
+              //GetScalarFieldOfStruct(struct_def, field, code_ptr);
+            } else {
+              code += "\t\t//GetScalarFieldOfTable\n";
+              //GetScalarFieldOfTable(struct_def, field, code_ptr);
+              code += "\t\to = FlatBuffers.offset(x, " + NumToString(field.value.offset) +")\n";
+              code += "\t\to != 0 && return FlatBuffers.get(x, o + FlatBuffers.pos(x), " + TypeName(field) + ")\n";
+              code += "\t\treturn " + GenTypeGet(field.value.type) + "(" + GenConstant(field) + ")\n";
+              //code += "\t\t# " + CastToEnum(field.value.type, getter) + "\n";
+            }
+          } 
+          else {
+            switch (field.value.type.base_type) {
+              case BASE_TYPE_STRUCT:
+                if (struct_def.fixed) {
+                  code += "\t\t//GetStructFieldOfStruct\n";
+                  //GetStructFieldOfStruct(struct_def, field, code_ptr);
+                } else {
+                  code += "\t\t//GetStructFieldOfTable\n";
+                  //GetStructFieldOfTable(struct_def, field, code_ptr);
+                }
+                break;
+              case BASE_TYPE_STRING:
+                code += "\t\t//GetStringField\n";
+                //GetStringField(struct_def, field, code_ptr);
+                break;
+              case BASE_TYPE_VECTOR: {
+                auto vectortype = field.value.type.VectorType();
+                if (vectortype.base_type == BASE_TYPE_STRUCT) {
+                  code += "\t\t//GetMemberOfVectorOfStruct\n";
+                  //GetMemberOfVectorOfStruct(struct_def, field, code_ptr);
+                } else {
+                  code += "\t\t//GetMemberOfVectorOfNonStruct\n";
+                  //GetMemberOfVectorOfNonStruct(struct_def, field, code_ptr);
+                }
+                break;
+              }
+              case BASE_TYPE_UNION: {
+                code += "\t\t//GetUnionField\n";
+                //GetUnionField(struct_def, field, code_ptr);
+                break;
+              }
+              default: {
+                code += "\t\t//FLATBUFFERS_ASSERT\n";
+                //FLATBUFFERS_ASSERT(0);
+              }
+              code += "\n";
+
+            }
+          }
+    //if (IsVector(field.value.type)) {
+    //  GetVectorLen(struct_def, field, code_ptr);
+    //  if (field.value.type.element == BASE_TYPE_UCHAR) {
+    //    GetUByteSlice(struct_def, field, code_ptr);
+    //  }
+    //}
+      }
+      code += "\tend\n";
+      code += "\treturn nothing\n";
+      code += "end\n\n";
+  }
+
   // Generate a struct field getter, conditioned on its child type(s).
   void GenStructAccessor(const StructDef &struct_def, const FieldDef &field,
                          std::string *code_ptr) {
@@ -754,23 +852,26 @@ class GoGenerator : public BaseGenerator {
     if (!struct_def.fixed) {
       // Generate a special accessor for the table that has been declared as
       // the root type.
-      NewRootTypeFromBuffer(struct_def, code_ptr);
+      // NewRootTypeFromBuffer(struct_def, code_ptr);
     }
     // Generate the Init method that sets the field in a pre-existing
     // accessor object. This is to allow object reuse.
-    InitializeExisting(struct_def, code_ptr);
+    // InitializeExisting(struct_def, code_ptr);
     // Generate _tab accessor
-    GenTableAccessor(struct_def, code_ptr);
+    // GenTableAccessor(struct_def, code_ptr);
+
+    GenPropertyNames(struct_def, code_ptr);
+
+    GenGetProperty(struct_def, code_ptr);
 
     // Generate struct fields accessors
-    for (auto it = struct_def.fields.vec.begin();
-         it != struct_def.fields.vec.end(); ++it) {
-      auto &field = **it;
-      if (field.deprecated) continue;
-
-      GenStructAccessor(struct_def, field, code_ptr);
-      GenStructMutator(struct_def, field, code_ptr);
-    }
+    //for (auto it = struct_def.fields.vec.begin();
+    //     it != struct_def.fields.vec.end(); ++it) {
+    //  auto &field = **it;
+    //  if (field.deprecated) continue;
+    //  GenStructAccessor(struct_def, field, code_ptr);
+    //  //GenStructMutator(struct_def, field, code_ptr);
+    //}
 
     // Generate builders
     if (struct_def.fixed) {
