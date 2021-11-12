@@ -171,7 +171,6 @@ class GoGenerator : public BaseGenerator {
   void GetScalarFieldOfStruct(const StructDef &struct_def,
                               const FieldDef &field, std::string *code_ptr) {
     std::string &code = *code_ptr;
-    std::string getter = GenGetter(field.value.type);
     code += "\t\treturn FlatBuffers.get(x, FlatBuffers.pos(x) + " + NumToString(field.value.offset) + ", " + TypeName(field) +  ")\n";
   }
 
@@ -403,8 +402,6 @@ class GoGenerator : public BaseGenerator {
       for (auto it = struct_def.fields.vec.begin();
          it != struct_def.fields.vec.end(); ++it) {
           auto &field = **it;
-          std::string getter = GenGetter(field.value.type);
-
           if (field.deprecated) continue;
 
           if (first){
@@ -525,16 +522,6 @@ class GoGenerator : public BaseGenerator {
       EnumMember(enum_def, ev, max_name_length, code_ptr);
     }
     EndEnum(code_ptr);
-  }
-
-  // Returns the function name that is able to read a value of the given type.
-  std::string GenGetter(const Type &type) {
-    switch (type.base_type) {
-      case BASE_TYPE_STRING: return "rcv._tab.ByteVector";
-      case BASE_TYPE_UNION: return "rcv._tab.Union";
-      case BASE_TYPE_VECTOR: return GenGetter(type.VectorType());
-      default: return "rcv._tab.Get" + MakeCamel(GenTypeBasic(type));
-    }
   }
 
   std::string GenTypeBasic(const Type &type) {
