@@ -393,6 +393,22 @@ class GoGenerator : public BaseGenerator {
       code += ")\n\n";
   }
 
+    void GenPropertyNamesAsStruct(const StructDef &struct_def, std::string *code_ptr){
+      std::string &code = *code_ptr;
+      code += "module " + struct_def.name + "Properties\n";
+      code += "abstract type AbstractProperty end\n";
+
+      for (auto it = struct_def.fields.vec.begin();
+         it != struct_def.fields.vec.end(); ++it) {
+          auto &field = **it;
+          if (field.deprecated) continue;
+          code += "struct " + GoIdentity(field.name) + " <: AbstractProperty end\n";
+      }
+      code += "end\n\n";
+
+  }
+
+
   void GenGetProperty(const StructDef &struct_def, std::string *code_ptr){
       std::string &code = *code_ptr;
       bool first = true;
@@ -465,6 +481,73 @@ class GoGenerator : public BaseGenerator {
       code += "end\n\n";
   }
 
+    void GenGetPropertyByNameStruct(const StructDef &struct_def, std::string *code_ptr){
+      std::string &code = *code_ptr;
+
+      for (auto it = struct_def.fields.vec.begin();
+         it != struct_def.fields.vec.end(); ++it) {
+          auto &field = **it;
+          if (field.deprecated) continue;
+
+          code += "function Base.getindex(x::" + struct_def.name + ", ::Type{" +struct_def.name + "Properties." +  GoIdentity(field.name) + "})\n";
+          
+          //GenComment(field.doc_comment, code_ptr, nullptr, "");
+          if (IsScalar(field.value.type.base_type)) {
+            if (struct_def.fixed) {
+              code += "\t\t#GetScalarFieldOfStruct\n";
+              GetScalarFieldOfStruct(struct_def, field, code_ptr);
+            } else {
+              code += "\t\t#GetScalarFieldOfTable\n";
+              GetScalarFieldOfTable(struct_def, field, code_ptr);
+            }
+          } 
+          else {
+            switch (field.value.type.base_type) {
+              case BASE_TYPE_STRUCT:
+                if (struct_def.fixed) {
+                  code += "\t\t#GetStructFieldOfStruct\n";
+                  //GetStructFieldOfStruct(struct_def, field, code_ptr);
+                } else {
+                  code += "\t\t#GetStructFieldOfTable\n";
+                  GetStructFieldOfTable(struct_def, field, code_ptr);
+                }
+                break;
+              case BASE_TYPE_STRING:
+                code += "\t\t#GetStringField\n";
+                GetStringField(struct_def, field, code_ptr);
+                break;
+              case BASE_TYPE_VECTOR: {
+                auto vectortype = field.value.type.VectorType();
+                if (vectortype.base_type == BASE_TYPE_STRUCT) {
+                  code += "\t\t#GetMemberOfVectorOfStruct\n";
+                } else {
+                  code += "\t\t#GetMemberOfVectorOfNonStruct\n";
+                }
+                GetMemberOfVector(struct_def, field, code_ptr);
+                break;
+              }
+              case BASE_TYPE_UNION: {
+                code += "\t\t#GetUnionField\n";
+                //GetUnionField(struct_def, field, code_ptr);
+                break;
+              }
+              default: {
+                code += "\t\t#FLATBUFFERS_ASSERT\n";
+                //FLATBUFFERS_ASSERT(0);
+              }
+            }
+            code += "\t\treturn nothing\n";
+          }
+          code += "end\n\n";
+
+      }
+      //code += "\tend\n";
+      //code += "\treturn nothing\n";
+      code += "\n";
+
+  }
+
+
 
   // Generate table constructors, conditioned on its members' types.
   void GenTableBuilders(const StructDef &struct_def, std::string *code_ptr) {
@@ -496,6 +579,9 @@ class GoGenerator : public BaseGenerator {
 
     GenPropertyNames(struct_def, code_ptr);
     GenGetProperty(struct_def, code_ptr);
+
+    GenPropertyNamesAsStruct(struct_def, code_ptr);
+    GenGetPropertyByNameStruct(struct_def, code_ptr);
 
     // Generate builders
     if (struct_def.fixed) {
