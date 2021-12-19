@@ -47,26 +47,26 @@ namespace flatbuffers {
 // of type tokens.
 // clang-format off
 #define FLATBUFFERS_GEN_TYPES_SCALAR(TD) \
-  TD(NONE,   "",       uint8_t,  byte,   UInt8,    byte,   uint8,   u8,   UByte, UInt8) \
-  TD(UTYPE,  "",       uint8_t,  byte,   UInt8,    byte,   uint8,   u8,   UByte, UInt8) /* begin scalar/int */ \
-  TD(BOOL,   "bool",   uint8_t,  boolean,Bool,    bool,   bool,    bool, Boolean, Bool) \
-  TD(CHAR,   "byte",   int8_t,   byte,   Int8,    sbyte,  int8,    i8,   Byte, Int8) \
-  TD(UCHAR,  "ubyte",  uint8_t,  byte,   UInt8,    byte,   uint8,   u8,   UByte, UInt8) \
-  TD(SHORT,  "short",  int16_t,  short,  Int16,   short,  int16,   i16,  Short, Int16) \
-  TD(USHORT, "ushort", uint16_t, short,  UInt16,  ushort, uint16,  u16,  UShort, UInt16) \
-  TD(INT,    "int",    int32_t,  int,    Int32,   int,    int32,   i32,  Int, Int32) \
-  TD(UINT,   "uint",   uint32_t, int,    UInt32,  uint,   uint32,  u32,  UInt, UInt32) \
-  TD(LONG,   "long",   int64_t,  long,   Int64,   long,   int64,   i64,  Long, Int64) \
-  TD(ULONG,  "ulong",  uint64_t, long,   UInt64,  ulong,  uint64,  u64,  ULong, UInt64) /* end int */ \
-  TD(FLOAT,  "float",  float,    float,  Float32, float,  float32, f32,  Float, Float32) /* begin float */ \
-  TD(DOUBLE, "double", double,   double, Float64, double, float64, f64,  Double, Double) /* end float/scalar */
+  TD(NONE,   "",       uint8_t,  byte,   byte,    byte,   uint8,   u8,   UByte, UInt8, UInt8) \
+  TD(UTYPE,  "",       uint8_t,  byte,   byte,    byte,   uint8,   u8,   UByte, UInt8, UInt8) /* begin scalar/int */ \
+  TD(BOOL,   "bool",   uint8_t,  boolean,bool,    bool,   bool,    bool, Boolean, Bool, Bool) \
+  TD(CHAR,   "byte",   int8_t,   byte,   int8,    sbyte,  int8,    i8,   Byte, Int8, Int8) \
+  TD(UCHAR,  "ubyte",  uint8_t,  byte,   byte,    byte,   uint8,   u8,   UByte, UInt8, UInt8) \
+  TD(SHORT,  "short",  int16_t,  short,  int16,   short,  int16,   i16,  Short, Int16, Int16) \
+  TD(USHORT, "ushort", uint16_t, short,  uint16,  ushort, uint16,  u16,  UShort, UInt16, UInt16) \
+  TD(INT,    "int",    int32_t,  int,    int32,   int,    int32,   i32,  Int, Int32, Int32) \
+  TD(UINT,   "uint",   uint32_t, int,    uint32,  uint,   uint32,  u32,  UInt, UInt32, UInt32) \
+  TD(LONG,   "long",   int64_t,  long,   int64,   long,   int64,   i64,  Long, Int64, Int64) \
+  TD(ULONG,  "ulong",  uint64_t, long,   uint64,  ulong,  uint64,  u64,  ULong, UInt64, UInt64) /* end int */ \
+  TD(FLOAT,  "float",  float,    float,  float32, float,  float32, f32,  Float, Float32, Float32) /* begin float */ \
+  TD(DOUBLE, "double", double,   double, float64, double, float64, f64,  Double, Double, Float64) /* end float/scalar */
 #define FLATBUFFERS_GEN_TYPES_POINTER(TD) \
-  TD(STRING, "string", Offset<void>, int, Int, StringOffset, int, unused, Int, Offset<String>) \
-  TD(VECTOR, "",       Offset<void>, int, Int, VectorOffset, int, unused, Int, Offset<UOffset>) \
-  TD(STRUCT, "",       Offset<void>, int, Int, int,          int, unused, Int, Offset<UOffset>) \
-  TD(UNION,  "",       Offset<void>, int, Int, int,          int, unused, Int, Offset<UOffset>)
+  TD(STRING, "string", Offset<void>, int, int, StringOffset, int, unused, Int, Offset<String>, Int) \
+  TD(VECTOR, "",       Offset<void>, int, int, VectorOffset, int, unused, Int, Offset<UOffset>, Int) \
+  TD(STRUCT, "",       Offset<void>, int, int, int,          int, unused, Int, Offset<UOffset>, Int) \
+  TD(UNION,  "",       Offset<void>, int, int, int,          int, unused, Int, Offset<UOffset>, Int)
 #define FLATBUFFERS_GEN_TYPE_ARRAY(TD) \
-  TD(ARRAY,  "",       int,          int, Int, int,          int, unused, Int, Offset<UOffset>)
+  TD(ARRAY,  "",       int,          int, int, int,          int, unused, Int, Offset<UOffset>, Int)
 // The fields are:
 // - enum
 // - FlatBuffers schema type.
@@ -77,6 +77,7 @@ namespace flatbuffers {
 // - Python type.
 // - Rust type.
 // - Kotlin type.
+// - Swift type
 
 // using these macros, we can now write code dealing with types just once, e.g.
 
@@ -615,6 +616,7 @@ struct IDLOptions {
     kRust = 1 << 14,
     kKotlin = 1 << 15,
     kSwift = 1 << 16,
+    kJulia = 1 << 17,
     kMAX
   };
 
@@ -1132,6 +1134,10 @@ extern bool GenerateKotlin(const Parser &parser, const std::string &path,
 // Generate Swift classes.
 // See idl_gen_swift.cpp
 extern bool GenerateSwift(const Parser &parser, const std::string &path,
+                          const std::string &file_name);
+
+// See idl_gen_julia.cpp
+extern bool GenerateJulia(const Parser &parser, const std::string &path,
                           const std::string &file_name);
 
 // Generate a schema file from the internal representation, useful after

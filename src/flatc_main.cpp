@@ -103,6 +103,12 @@ int main(int argc, const char *argv[]) {
     { flatbuffers::GenerateSwift, nullptr, "--swift", "swift", true,
       flatbuffers::GenerateSwiftGRPC, flatbuffers::IDLOptions::kSwift,
       "Generate Swift files for tables/structs", nullptr },
+    { flatbuffers::GenerateJulia, nullptr, "--julia", "Julia", true,
+      nullptr, flatbuffers::IDLOptions::kJulia,
+      "Generate Julia file for tables/structs", 
+      nullptr
+    },
+
   };
 
   flatbuffers::FlatCompiler::InitParams params;
