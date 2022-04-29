@@ -132,7 +132,7 @@ class JuliaGenerator : public BaseGenerator {
     std::string &code = *code_ptr;
 
     code += "struct "+ struct_def.name + " <: ";
-    code += struct_def.fixed ? "FlatBuffers.Struct\n" : "FlatBuffers.Table\n";
+    code += struct_def.fixed ? "FlatBuffers2.Struct\n" : "FlatBuffers2.Table\n";
     code += "\tbytes::Vector{UInt8}\n";
     code += "\tpos::Base.Int\n";
     code += "end\n\n";
@@ -148,7 +148,7 @@ class JuliaGenerator : public BaseGenerator {
   // Begin enum code with a class declaration.
   void BeginEnum(const EnumDef &enum_def, std::string *code_ptr) {
     std::string &code = *code_ptr;
-    code += "FlatBuffers.@scopedenum " + enum_def.name + "::" + GenTypeBasic(enum_def.underlying_type)  + " ";
+    code += "FlatBuffers2.@scopedenum " + enum_def.name + "::" + GenTypeBasic(enum_def.underlying_type)  + " ";
   }
 
   // A single enum member.
@@ -168,15 +168,15 @@ class JuliaGenerator : public BaseGenerator {
   void GetScalarFieldOfStruct(const StructDef &struct_def,
                               const FieldDef &field, std::string *code_ptr) {
     std::string &code = *code_ptr;
-    code += "\t\treturn FlatBuffers.get(x, FlatBuffers.pos(x) + " + NumToString(field.value.offset) + ", " + TypeName(field) +  ")\n";
+    code += "\t\treturn FlatBuffers2.get(x, FlatBuffers2.pos(x) + " + NumToString(field.value.offset) + ", " + TypeName(field) +  ")\n";
   }
 
   // Get the value of a table's scalar.
   void GetScalarFieldOfTable(const StructDef &struct_def, const FieldDef &field,
                              std::string *code_ptr) {
     std::string &code = *code_ptr;
-    code += "\t\to = FlatBuffers.offset(x, " + NumToString(field.value.offset) +")\n";
-    code += "\t\to != 0 && return FlatBuffers.get(x, o + FlatBuffers.pos(x), " + TypeName(field) + ")\n";
+    code += "\t\to = FlatBuffers2.offset(x, " + NumToString(field.value.offset) +")\n";
+    code += "\t\to != 0 && return FlatBuffers2.get(x, o + FlatBuffers2.pos(x), " + TypeName(field) + ")\n";
     code += "\t\treturn " + GenTypeGet(field.value.type) + "(" + GenConstant(field) + ")\n";
   }
 
@@ -206,10 +206,10 @@ class JuliaGenerator : public BaseGenerator {
     std::string &code = *code_ptr;
 
     // todo chech branch on struct_def->fixed in commented code below
-    code += "\t\to = FlatBuffers.offset(x, " + NumToString(field.value.offset) + ")\n";
+    code += "\t\to = FlatBuffers2.offset(x, " + NumToString(field.value.offset) + ")\n";
     code += "\t\tif o != 0\n";
-    code += "\t\t\ty = FlatBuffers.indirect(x, o + FlatBuffers.pos(x))\n";
-    code += "\t\t\treturn FlatBuffers.init(" + TypeName(field) + ", FlatBuffers.bytes(x), y)\n";
+    code += "\t\t\ty = FlatBuffers2.indirect(x, o + FlatBuffers2.pos(x))\n";
+    code += "\t\t\treturn FlatBuffers2.init(" + TypeName(field) + ", FlatBuffers2.bytes(x), y)\n";
     code += "\t\tend\n";
 
     //if (field.value.type.struct_def->fixed) {
@@ -223,8 +223,8 @@ class JuliaGenerator : public BaseGenerator {
   void GetStringField(const StructDef &struct_def, const FieldDef &field,
                       std::string *code_ptr) {
     std::string &code = *code_ptr;
-    code += "\t\to = FlatBuffers.offset(x, " + NumToString(field.value.offset) +")\n";
-    code += "\t\to != 0 && return String(x, o + FlatBuffers.pos(x))\n";
+    code += "\t\to = FlatBuffers2.offset(x, " + NumToString(field.value.offset) +")\n";
+    code += "\t\to != 0 && return String(x, o + FlatBuffers2.pos(x))\n";
     code += "\t\treturn string(" + GenConstant(field) + ")\n";
   }
 
@@ -246,15 +246,15 @@ class JuliaGenerator : public BaseGenerator {
   void GetMemberOfVector(const StructDef &struct_def,
                                  const FieldDef &field, std::string *code_ptr) {
     std::string &code = *code_ptr;
-    code += "\t\to = FlatBuffers.offset(x, " + NumToString(field.value.offset) +")\n";
-    code += "\t\to != 0 && return FlatBuffers.Array{" + TypeName(field) + "}(x, o)\n";
+    code += "\t\to = FlatBuffers2.offset(x, " + NumToString(field.value.offset) +")\n";
+    code += "\t\to != 0 && return FlatBuffers2.Array{" + TypeName(field) + "}(x, o)\n";
   }
 
   // Begin the creator function signature.
   void BeginBuilderArgs(const StructDef &struct_def, std::string *code_ptr) {
     std::string &code = *code_ptr;
     code += "function create" + struct_def.name;
-    code += "(b::FlatBuffers.Builder";
+    code += "(b::FlatBuffers2.Builder";
   }
 
   // Recursively generate arguments for a constructor, to deal with nested
@@ -290,19 +290,19 @@ class JuliaGenerator : public BaseGenerator {
   void StructBuilderBody(const StructDef &struct_def, const char *nameprefix,
                          std::string *code_ptr) {
     std::string &code = *code_ptr;
-    code += "\tFlatBuffers.prep!(b, " + NumToString(struct_def.minalign) + ", ";
+    code += "\tFlatBuffers2.prep!(b, " + NumToString(struct_def.minalign) + ", ";
     code += NumToString(struct_def.bytesize) + ")\n";
     for (auto it = struct_def.fields.vec.rbegin();
          it != struct_def.fields.vec.rend(); ++it) {
       auto &field = **it;
       if (field.padding)
-        code += "\tFlatBuffers.pad!(b, " + NumToString(field.padding) + ")\n";
+        code += "\tFlatBuffers2.pad!(b, " + NumToString(field.padding) + ")\n";
       if (IsStruct(field.value.type)) {
         // TODO: investigate this branch
         StructBuilderBody(*field.value.type.struct_def,
                           (nameprefix + (field.name + "_")).c_str(), code_ptr);
       } else {
-        code += "\tFlatBuffers.prepend!(b, ";
+        code += "\tFlatBuffers2.prepend!(b, ";
         code += CastToBaseType(field.value.type,
                                nameprefix + JuliaIdentity(field.name)) +
                 ")\n";
@@ -312,7 +312,7 @@ class JuliaGenerator : public BaseGenerator {
 
   void EndBuilderBody(std::string *code_ptr) {
     std::string &code = *code_ptr;
-    code += "\treturn FlatBuffers.offset(b)\n";
+    code += "\treturn FlatBuffers2.offset(b)\n";
     code += "end\n";
   }
 
@@ -320,7 +320,7 @@ class JuliaGenerator : public BaseGenerator {
   void GetStartOfTable(const StructDef &struct_def, std::string *code_ptr) {
     std::string &code = *code_ptr;
     code += struct_def.name + "Start";
-    code += "(b::FlatBuffers.Builder) = FlatBuffers.startobject!(b, ";
+    code += "(b::FlatBuffers2.Builder) = FlatBuffers2.startobject!(b, ";
     code += NumToString(struct_def.fields.vec.size());
     code += ")\n";
   }
@@ -330,15 +330,15 @@ class JuliaGenerator : public BaseGenerator {
                          const size_t offset, std::string *code_ptr) {
     std::string &code = *code_ptr;
     code += struct_def.name + "Add" + MakeCamel(field.name);
-    code += "(b::FlatBuffers.Builder, ";
+    code += "(b::FlatBuffers2.Builder, ";
     code += JuliaIdentity(field.name);
 
     if (!IsScalar(field.value.type.base_type) && (!struct_def.fixed)) {
-      code += "::FlatBuffers.UOffsetT) = ";
-      code += "FlatBuffers.prependoffsetslot!(b, ";
+      code += "::FlatBuffers2.UOffsetT) = ";
+      code += "FlatBuffers2.prependoffsetslot!(b, ";
     } else {
       code += "::" + TypeName(field) + ") = ";
-      code += "FlatBuffers.prependslot!(b, ";
+      code += "FlatBuffers2.prependslot!(b, ";
     }
     code += NumToString(offset) + ", ";
     code += JuliaIdentity(field.name) + ", ";
@@ -356,8 +356,8 @@ class JuliaGenerator : public BaseGenerator {
     auto elem_size = InlineSize(vector_type);
     code += struct_def.name + "Start";
     code += MakeCamel(field.name);
-    code += "Vector(b::FlatBuffers.Builder, numelems::Integer) = ";
-    code += "FlatBuffers.startvector!(";
+    code += "Vector(b::FlatBuffers2.Builder, numelems::Integer) = ";
+    code += "FlatBuffers2.startvector!(";
     code += "b, ";
     code +=  NumToString(elem_size);
     code += ", numelems, ";
@@ -369,7 +369,7 @@ class JuliaGenerator : public BaseGenerator {
   void GetEndOffsetOnTable(const StructDef &struct_def, std::string *code_ptr) {
     std::string &code = *code_ptr;
     code += struct_def.name + "End";
-    code += "(b::FlatBuffers.Builder) = FlatBuffers.endobject!(b)\n\n";
+    code += "(b::FlatBuffers2.Builder) = FlatBuffers2.endobject!(b)\n\n";
   }
 
   // Generate the receiver for function signatures.
@@ -683,7 +683,7 @@ class JuliaGenerator : public BaseGenerator {
     std::string &code = *code_ptr;
     code += "# Code generated by the FlatBuffers compiler. DO NOT EDIT.\n\n";
     code += "module Foo\n\n";
-    code += "using FlatBuffers\n\n";
+    code += "using FlatBuffers2\n\n";
   }
 
   // Save out the generated code for a Go Table type.
